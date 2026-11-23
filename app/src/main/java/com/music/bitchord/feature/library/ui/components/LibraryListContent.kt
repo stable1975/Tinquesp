@@ -110,6 +110,9 @@ fun LibraryListContent(
     val showPlaylists = filter == LibraryFilter.PLAYLISTS
     val showHistory = false
     val librarySongList = libraryEntries.mapNotNull { entrySongs[it] }.distinctBy { it.videoId }
+    // Tapping a song queues every song of the library (in the library's own
+    // order), not just the few that were added to it.
+    val queueSongs = librarySongs.ifEmpty { librarySongList }
     val albumEntries = libraryEntries.filter { it.type == LibraryEntryType.ALBUM }
     val artistEntries = libraryEntries.filter { it.type == LibraryEntryType.ARTIST }
     val recent = recentLibraryItems(libraryEntries, entrySongs, artFor).take(16)
@@ -177,7 +180,7 @@ fun LibraryListContent(
                             onAction = { onShowAll(LibraryFilter.SONGS) },
                         )
                     }
-                    librarySongRows("library_songs", preview, librarySongList, currentSong, isPlaying, selectedIds,
+                    librarySongRows("library_songs", preview, queueSongs, currentSong, isPlaying, selectedIds,
                         onSongClick, onSongLongPress, onSongSwipe, onSongMore, songMenu)
                 }
                 LibrarySection.ALBUMS -> if (albumEntries.isNotEmpty()) {
@@ -206,7 +209,7 @@ fun LibraryListContent(
         // One group on its own, from its filter chip.
         when (filter) {
             LibraryFilter.SONGS -> if (librarySongList.isEmpty()) libraryEmptyNote("library_songs_empty") else
-                librarySongRows("library_songs_all", librarySongList, librarySongList, currentSong, isPlaying, selectedIds,
+                librarySongRows("library_songs_all", librarySongList, queueSongs, currentSong, isPlaying, selectedIds,
                     onSongClick, onSongLongPress, onSongSwipe, onSongMore, songMenu)
             LibraryFilter.ALBUMS -> if (albumEntries.isEmpty()) libraryEmptyNote("library_albums_empty") else
                 collectionRows("library_albums_all", albumEntries, round = false, artFor = artFor) { e -> onOpenAlbum(e.title, e.artworkUrl ?: artFor(e)) }

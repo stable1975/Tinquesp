@@ -39,6 +39,7 @@ import com.music.bitchord.ui.components.heatRing
 import androidx.compose.foundation.layout.fillMaxSize
 import com.music.bitchord.R
 import com.music.bitchord.data.model.Song
+import com.music.bitchord.data.model.isSameTrackAs
 import com.music.bitchord.feature.library.data.LibraryEntry
 import com.music.bitchord.feature.library.data.LibraryEntryType
 import com.music.bitchord.ui.components.ExpressiveGroupDefaults
@@ -241,7 +242,10 @@ fun LazyListScope.librarySongRows(
             isCurrent = currentSong?.videoId == song.videoId,
             isPlaying = isPlaying,
             selected = song.videoId in selectedIds,
-            onClick = { onSongClick(allSongs, allSongs.indexOf(song).coerceAtLeast(0)) },
+            onClick = {
+                val at = allSongs.indexOfFirst { it.isSameTrackAs(song) }
+                if (at >= 0) onSongClick(allSongs, at) else onSongClick(listOf(song) + allSongs, 0)
+            },
             onLongPress = { onSongLongPress(song) },
             onMore = onSongMore?.let { more -> { more(song, key) } },
             onSwipeToQueue = { onSongSwipe(song) },

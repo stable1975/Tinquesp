@@ -649,4 +649,5 @@
     <string name="use_this_profile">Usar este perfil</string>
     <string name="switch_profile_hint">Cambia con el avatar y luego usa este perfil.</string>
     <string name="profile_unavailable">Aún no hay un perfil con sesión iniciada en esta página.</string>
+    <string name="artist_latest_album">Álbum reciente</string>
 </resources>

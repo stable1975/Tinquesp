@@ -409,7 +409,10 @@ fun LocalMusicScreen(
 
     val inDrillDown = drillDownLabel != null
     SideEffect {
-        if (!inDrillDown || drillDownShowsAlbums || !fullScreenCollectionArtwork || !drillDownFullScreenArtwork) {
+        val artistHeroPage = inDrillDown && drillDownIsArtist && !drillDownShowsAlbums
+        if (!artistHeroPage &&
+            (!inDrillDown || drillDownShowsAlbums || !fullScreenCollectionArtwork || !drillDownFullScreenArtwork)
+        ) {
             onArtworkPaletteChanged?.invoke(null)
         }
     }
@@ -796,7 +799,13 @@ fun LocalMusicScreen(
                         key.songs.all { it.albumName?.trim().equals(key.label.trim(), ignoreCase = true) }
                     // The artist page's switch floats on Glass over the list
                     // (no band): the list starts below it and scrolls on under it.
-                    val pagePadding = if (isArtistPage) {
+                    // The artist's Songs view is the full-bleed hero page: it runs up
+                    // under the app bar and carries its own sections, so it takes no
+                    // switch space. Albums / Folders keep the glass switch.
+                    val heroMode = isArtistPage && artistMode == ArtistPageMode.SONGS && key.songs.isNotEmpty()
+                    val pagePadding = if (heroMode) {
+                        PaddingValues(bottom = bodyContentPadding.calculateBottomPadding())
+                    } else if (isArtistPage) {
                         PaddingValues(
                             top = bodyContentPadding.calculateTopPadding() + ARTIST_SWITCH_SPACE,
                             bottom = bodyContentPadding.calculateBottomPadding(),
@@ -878,6 +887,63 @@ fun LocalMusicScreen(
                                     contentPadding = pagePadding,
                                 )
                                 }
+                                heroMode -> {
+                                    val artistSongs = key.songs
+                                    val openAlbum: (AlbumEntry) -> Unit = { entry ->
+                                        parentArtistAlbums = albumsForPage
+                                        parentArtistLabel = key.label
+                                        drillDownLabel = entry.title
+                                        drillDownSongs = entry.songs
+                                        drillDownArt = entry.thumbnailUrl
+                                        drillDownIsArtist = false
+                                        drillDownShowsAlbums = false
+                                        drillDownFullScreenArtwork = true
+                                    }
+                                    val heroAlbums = remember(albumsForPage) {
+                                        albumsForPage.map { entry ->
+                                            com.music.bitchord.feature.localmusic.ui.components.ArtistHeroAlbum(
+                                                key = entry.key,
+                                                title = entry.title,
+                                                subtitle = "${entry.songs.size} · " + entry.artist.ifBlank { key.label },
+                                                artworkUrl = entry.thumbnailUrl,
+                                                songs = entry.songs,
+                                            )
+                                        }
+                                    }
+                                    val shuffleArtist: () -> Unit = {
+                                        if (shuffleArtistAlbums) {
+                                            val ordered = shuffleAlbumGroupsKeepTrackOrder(artistSongs)
+                                            onShuffleArtist?.invoke(ordered) ?: onShuffle(ordered)
+                                        } else {
+                                            onShuffle(artistSongs)
+                                        }
+                                    }
+                                    SelectionScopeEffect(key = key, songs = artistSongs)
+                                    com.music.bitchord.feature.localmusic.ui.components.ArtistHeroPage(
+                                        artist = key.label,
+                                        songs = artistSongs,
+                                        albums = heroAlbums,
+                                        currentSong = currentSong,
+                                        onPlay = { onSongClick(artistSongs, 0) },
+                                        onShuffle = shuffleArtist,
+                                        onSongClick = { tracks, index ->
+                                            val song = tracks[index]
+                                            if (selectingSongs) toggleDownloadSelection(song) else onSongClick(tracks, index)
+                                        },
+                                        onSongLongPress = { song -> toggleDownloadSelection(song) },
+                                        onSongMore = { song -> activeMenuSong = song },
+                                        onAlbumClick = { hero ->
+                                            albumsForPage.firstOrNull { it.key == hero.key }?.let(openAlbum)
+                                        },
+                                        onSeeAllAlbums = { artistMode = ArtistPageMode.ALBUMS },
+                                        onOpenFolders = if (artistSongs.any { !it.localPath.isNullOrBlank() }) {
+                                            { artistMode = ArtistPageMode.FOLDERS }
+                                        } else null,
+                                        contentPadding = pagePadding,
+                                        onArtworkPaletteChanged = onArtworkPaletteChanged,
+                                        allowRemoteArtwork = onlineAlbumArtistArtwork && !offlineMode,
+                                    )
+                                }
                                 else -> androidx.compose.runtime.CompositionLocalProvider(
                                     com.music.bitchord.feature.localmusic.ui.components.LocalDrillDownHeaderExtra provides if (isAlbumPage) {
                                         {
@@ -930,7 +996,7 @@ fun LocalMusicScreen(
                                 }
                             }
                         }
-                        if (isArtistPage) {
+                        if (isArtistPage && !heroMode) {
                             androidx.compose.runtime.CompositionLocalProvider(
                                 // The tab bar's own glass: the chosen type and parameters.
                                 com.music.bitchord.ui.components.LocalTopBarGlassBackdrop provides artistGlassOn,
@@ -983,6 +1049,7 @@ fun LocalMusicScreen(
                         contentPadding = bodyContentPadding,
                         songDropdownMenu = if (isDownloads) null else songDropdownMenu,
                         showLogo = showTabLogo,
+                        onShuffleAll = onShuffle,
                     )
                 }
 
@@ -1387,6 +1454,8 @@ private fun SongsTab(
     contentPadding: PaddingValues,
     songDropdownMenu: (@Composable (Song) -> Unit)? = null,
     showLogo: Boolean = false,
+    /** Plays the whole list shuffled; the floating button is hidden when null. */
+    onShuffleAll: ((List<Song>) -> Unit)? = null,
 ) {
     if (viewType == LibraryViewType.GRID) {
         val gridState = rememberLazyGridState()
@@ -1454,6 +1523,14 @@ private fun SongsTab(
                     bottom = contentPadding.calculateBottomPadding() + 8.dp,
                 ),
             )
+            if (onShuffleAll != null && songs.isNotEmpty() && selectedIds.isEmpty()) {
+                FloatingShuffleButton(
+                    onClick = { onShuffleAll(songs) },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 24.dp, bottom = contentPadding.calculateBottomPadding() + 12.dp),
+                )
+            }
         }
     } else {
         val listState = rememberLazyListState()
@@ -1509,7 +1586,36 @@ private fun SongsTab(
                 },
                 contentPadding = contentPadding,
             )
+            if (onShuffleAll != null && songs.isNotEmpty() && selectedIds.isEmpty()) {
+                FloatingShuffleButton(
+                    onClick = { onShuffleAll(songs) },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 24.dp, bottom = contentPadding.calculateBottomPadding() + 12.dp),
+                )
+            }
         }
+    }
+}
+
+/** Round glass button that plays the whole list shuffled. */
+@Composable
+private fun FloatingShuffleButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(Color(0xE61C1C1E))
+            .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Shuffle,
+            contentDescription = stringResource(R.string.shuffle),
+            tint = Color.White,
+            modifier = Modifier.size(26.dp),
+        )
     }
 }
 
