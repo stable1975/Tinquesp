@@ -1,82 +1,62 @@
 # Tinque
 
-[MusicBeatSP](https://github.com/Kdroidwin/MusicBeatSP) をベースにしたAndroid用ローカル音楽プレイヤーです。  
-左右独立・一括対応のイコライザーやチャンネルスワップ、フォルダビュー機能の搭載、およびプレイヤー開閉アニメーションの変更を行っています。
+A local music player for Android based on [MusicBeatSP](https://github.com/Kdroidwin/MusicBeatSP).  
+It features a linked/independent L/R equalizer, channel swap, folder view, and modified player open/close animations.
 
-[![対応OS](https://img.shields.io/badge/対応OS-Android%208.0%2B-3DDC84?style=flat-square)](https://developer.android.com)
-[![パッケージID](https://img.shields.io/badge/App%20ID-com.music.tinque-blue?style=flat-square)](#エディション一覧)
-[![Fork元](https://img.shields.io/badge/Forked%20from-MusicBeatSP-gray?style=flat-square)](https://github.com/Kdroidwin/MusicBeatSP)
-[![ライセンス](https://img.shields.io/badge/License-GPL%20v3-green?style=flat-square)](LICENSE)
+[![Supported OS](https://img.shields.io/badge/Supported%20OS-Android%208.0%2B-3DDC84?style=flat-square)](https://developer.android.com)
+[![Package ID](https://img.shields.io/badge/App%20ID-com.music.tinque-blue?style=flat-square)](#editions)
+[![Forked from](https://img.shields.io/badge/Forked%20from-MusicBeatSP-gray?style=flat-square)](https://github.com/Kdroidwin/MusicBeatSP)
+[![License](https://img.shields.io/badge/License-GPL%20v3-green?style=flat-square)](LICENSE)
 
 <br/>
 
-[**主な特徴・変更点**](#主な特徴変更点) · [**エディション一覧**](#エディション一覧) · [**ビルド手順**](#ビルド手順) · [**クレジット**](#クレジット)
+[**Key Features & Changes**](#key-features--changes) · [**Editions**](#editions) · [**Build Instructions**](#build-instructions) · [**Credits**](#credits)
 
 ---
 
-## 主な特徴・変更点
+## Key Features & Changes
 
-- **パラメトリックイコライザー（一括・左右独立対応）**
-  - 左右両チャンネルへ一括して適用する標準設定に加え、左右それぞれに個別の周波数・ゲイン・Q値を適用できる左右独立設定（L/R個別PEQ）に対応。(.eelまたはEqualizer APO形式のテキストファイル）
-- **チャンネルスワップ機能**
-  - イヤホンや音源に合わせて、左右の音声出力をワンタップで反転可能。
-- **アニメーションの変更**
-  - ボトムバーと全画面プレイヤー間の開閉アニメーションの挙動を変更（全画面カバーアート表示時の遷移挙動を含む）。
-  - 再生バー上の歌詞および全画面歌詞画面における切り替えアニメーションの変更。
-- **ボトムバー展開固定オプション**
-  - 下部のミニプレイヤーを展開した状態で画面上に固定表示する設定を追加。
-- **フォルダビュー機能**
-  - 端末内のフォルダ階層をそのまま参照して楽曲を選択・再生可能。
-- **独立したパッケージID**
-  - パッケージIDを `com.music.tinque` に変更。MusicBeatSP や BitChord と同時に同一端末へインストール可能です。
+- **Parametric Equalizer (Linked & Independent L/R Support)**
+  - In addition to standard settings applied equally to both left and right channels, it supports independent left/right configuration (individual L/R PEQ) allowing custom frequency, gain, and Q values for each channel. (Supports `.eel` or Equalizer APO text files)
+- **Channel Swap**
+  - Flip left and right audio channels with a single tap to suit your earphones or audio source.
+- **Animation Changes**
+  - Modified open/close animation behavior between the bottom bar and the full-screen player (including transition behavior when full-screen cover art is displayed).
+  - Updated transition animations for lyrics on the playback bar and the full-screen lyrics view.
+- **Keep Bottom Bar Expanded Option**
+  - Added a setting to keep the bottom mini-player pinned on screen in an expanded state.
+- **Folder View**
+  - Browse your device's folder hierarchy directly to select and play tracks.
+- **Independent Package ID**
+  - Changed the package ID to `com.music.tinque`, allowing it to be installed on the same device alongside MusicBeatSP or BitChord.
 
 ---
 
-## エディション一覧
+## Editions
 
-| エディション | パッケージID | 概要 |
+| Edition | Package ID | Overview |
 | :--- | :--- | :--- |
-| **標準版** | `com.music.tinque` | 通常のAndroid端末向け（推奨） |
-| **QQ Music 互換版** | `com.tencent.qqmusic` | OnePlus / OPPO端末でシステムDolby Atmos等を有効化するためのパッケージ |
-| **KuGou 互換版** | `com.kugou.android` | OnePlus / OPPO向けの代替互換パッケージ |
-| **オフライン版** | `com.music.tinque.nointernet` | インターネット接続権限を含まない版 |
+| **Standard** | `com.music.tinque` | For standard Android devices (recommended) |
+| **QQ Music Compatible** | `com.tencent.qqmusic` | Package for enabling system Dolby Atmos, etc. on OnePlus / OPPO devices |
+| **KuGou Compatible** | `com.kugou.android` | Alternative compatible package for OnePlus / OPPO devices |
+| **Offline** | `com.music.tinque.nointernet` | Version without internet access permissions |
 
 ---
 
-## ビルド手順
+## Build Instructions
 
-### 動作環境
+### Requirements
 - JDK 17
 - Android SDK Platform 37
-- CMake 3.22.1 以上
+- CMake 3.22.1 or higher
 
-### ビルドコマンド
+### Build Commands
 ```bash
-git clone https://github.com/nanbeimerco/Tinque.git
+git clone [https://github.com/nanbeimerco/Tinque.git](https://github.com/nanbeimerco/Tinque.git)
 cd Tinque
 
-# 標準デバッグAPKのビルド
+# Build standard debug APK
 ./gradlew assembleStandardDebug
 
-# 標準リリースAPKのビルド
+# Build standard release APK
 ./gradlew assembleStandardRelease
-```
-
-ビルド完了後、APKは `app/build/outputs/apk/standard/<debug|release>/` に出力されます。
-
----
-
-## クレジット
-
-- **[MusicBeatSP](https://github.com/Kdroidwin/MusicBeatSP)** (by Kdroidwin) — ベースとなったプロジェクト
-- **[BitChord](https://github.com/kushagrasinghx/BitChord)** (by Kushagra Singh) — UIおよび再生基盤
-- **[InnerTune](https://github.com/z-huang/InnerTune)** (by Zion Huang) — 先行プレイヤープロジェクト
-- **[TagLib](https://github.com/kyant0/taglib)** — メタデータ処理エンジン
-- **[Haze](https://github.com/chrisbanes/haze)** — すりガラス効果ライブラリ
-
----
-
-## ライセンス
-
-本プロジェクトは GNU General Public License v3.0 (GPL-3.0) のもとで公開されています。
-詳細は [LICENSE](LICENSE) をご確認ください。
