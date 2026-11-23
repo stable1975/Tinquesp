@@ -1,6 +1,6 @@
-# Tinque
+# Tinquesp
 
-A local music player for Android based on [MusicBeatSP](https://github.com/Kdroidwin/MusicBeatSP).  
+A local music player for Android based on [Tinque](https://github.com/nanbeimerco/Tinque). 
 It features a linked/independent L/R equalizer, channel swap, folder view, and modified player open/close animations.
 
 [![Supported OS](https://img.shields.io/badge/Supported%20OS-Android%208.0%2B-3DDC84?style=flat-square)](https://developer.android.com)
