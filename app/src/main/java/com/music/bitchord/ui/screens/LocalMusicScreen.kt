@@ -406,6 +406,9 @@ fun LocalMusicScreen(
     var drillDownAlbumEntries by remember { mutableStateOf<List<AlbumEntry>?>(null) }
     var parentArtistAlbums by remember { mutableStateOf<List<AlbumEntry>?>(null) }
     var parentArtistLabel by remember { mutableStateOf<String?>(null) }
+    // Set when the album was opened from the artist's hero page, so going back
+    // returns to that page rather than to the artist's Albums list.
+    var parentArtistSongs by remember { mutableStateOf<List<Song>?>(null) }
 
     val inDrillDown = drillDownLabel != null
     SideEffect {
@@ -427,19 +430,30 @@ fun LocalMusicScreen(
         drillDownAlbumEntries = null
         parentArtistAlbums = null
         parentArtistLabel = null
+        parentArtistSongs = null
         onDrillDownDismiss?.invoke()
     }
 
     val backFromDrillDown: () -> Unit = {
         val parent = parentArtistAlbums
         if (!drillDownShowsAlbums && parent != null) {
-            drillDownShowsAlbums = true
-            drillDownAlbumEntries = parent
-            drillDownSongs = parent.flatMap(AlbumEntry::songs)
+            val heroSongs = parentArtistSongs
+            if (heroSongs != null) {
+                // Back to the artist's own page.
+                drillDownShowsAlbums = false
+                drillDownIsArtist = true
+                drillDownAlbumEntries = parent
+                drillDownSongs = heroSongs
+            } else {
+                drillDownShowsAlbums = true
+                drillDownAlbumEntries = parent
+                drillDownSongs = parent.flatMap(AlbumEntry::songs)
+            }
             drillDownLabel = parentArtistLabel
             drillDownArt = null
             drillDownFullScreenArtwork = false
             parentArtistAlbums = null
+            parentArtistSongs = null
         } else {
             leaveDrillDown()
         }
@@ -872,6 +886,7 @@ fun LocalMusicScreen(
                                     },
                                     onAlbumClick = { entry ->
                                         parentArtistAlbums = artistAlbums
+                                        parentArtistSongs = null
                                         parentArtistLabel = key.label
                                         drillDownLabel = entry.title
                                         drillDownSongs = entry.songs
@@ -891,6 +906,7 @@ fun LocalMusicScreen(
                                     val artistSongs = key.songs
                                     val openAlbum: (AlbumEntry) -> Unit = { entry ->
                                         parentArtistAlbums = albumsForPage
+                                        parentArtistSongs = artistSongs
                                         parentArtistLabel = key.label
                                         drillDownLabel = entry.title
                                         drillDownSongs = entry.songs
@@ -1457,6 +1473,12 @@ private fun SongsTab(
     /** Plays the whole list shuffled; the floating button is hidden when null. */
     onShuffleAll: ((List<Song>) -> Unit)? = null,
 ) {
+    // Eight dp above the highest floating bar — the gap the mini-player keeps
+    // from the tab bar. Before the bars are measured, an estimate from the padding.
+    val barsTop = with(androidx.compose.ui.platform.LocalDensity.current) {
+        com.music.bitchord.ui.components.FloatingBarsMetrics.heightPx.toDp()
+    }
+    val shuffleBottomPadding = if (barsTop > 0.dp) barsTop + 8.dp else contentPadding.calculateBottomPadding() + 12.dp
     if (viewType == LibraryViewType.GRID) {
         val gridState = rememberLazyGridState()
         Box(modifier = Modifier.fillMaxSize()) {
@@ -1528,7 +1550,7 @@ private fun SongsTab(
                     onClick = { onShuffleAll(songs) },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 24.dp, bottom = contentPadding.calculateBottomPadding() + 12.dp),
+                        .padding(end = 24.dp, bottom = shuffleBottomPadding),
                 )
             }
         }
@@ -1591,7 +1613,7 @@ private fun SongsTab(
                     onClick = { onShuffleAll(songs) },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 24.dp, bottom = contentPadding.calculateBottomPadding() + 12.dp),
+                        .padding(end = 24.dp, bottom = shuffleBottomPadding),
                 )
             }
         }

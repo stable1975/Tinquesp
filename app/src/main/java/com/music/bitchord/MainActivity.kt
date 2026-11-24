@@ -3382,7 +3382,10 @@ private fun BitChordApp(
                                 .align(Alignment.BottomCenter)
                                 .widthIn(max = FLOATING_BAR_MAX_WIDTH)
                                 .fillMaxWidth()
-                                .onSizeChanged { floatingBarsHeight.intValue = it.height },
+                                .onSizeChanged {
+                                floatingBarsHeight.intValue = it.height
+                                com.music.bitchord.ui.components.FloatingBarsMetrics.heightPx = it.height
+                            },
                         )
                     } else Column(
                         modifier = Modifier
@@ -3395,7 +3398,10 @@ private fun BitChordApp(
                             // already been bounded by the time it is applied.
                             .widthIn(max = FLOATING_BAR_MAX_WIDTH)
                             .fillMaxWidth()
-                            .onSizeChanged { floatingBarsHeight.intValue = it.height },
+                            .onSizeChanged {
+                                floatingBarsHeight.intValue = it.height
+                                com.music.bitchord.ui.components.FloatingBarsMetrics.heightPx = it.height
+                            },
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {

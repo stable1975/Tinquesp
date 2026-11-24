@@ -4381,7 +4381,7 @@ class PlaybackService : MediaLibraryService() {
             LastPlayed.clear()
             return
         }
-        val range = LastPlayed.window(player.mediaItemCount, player.currentMediaItemIndex)
+        val range = LastPlayed.persistedWindow(player.mediaItemCount, player.currentMediaItemIndex)
         if (range.isEmpty()) return
         persistedQueueStart = range.first
         LastPlayed.saveQueue(
@@ -4399,7 +4399,7 @@ class PlaybackService : MediaLibraryService() {
             LastPlayed.clearImmediately()
             return
         }
-        val range = LastPlayed.window(player.mediaItemCount, player.currentMediaItemIndex)
+        val range = LastPlayed.persistedWindow(player.mediaItemCount, player.currentMediaItemIndex)
         persistedQueueStart = range.first
         LastPlayed.saveQueueImmediately(
             songs = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).toSong() },

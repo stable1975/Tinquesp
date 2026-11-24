@@ -45,7 +45,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -131,6 +134,11 @@ fun ArtistHeroPage(
     val heat by HeatStore.info.collectAsStateWithLifecycle()
     val topSongs = remember(songs, heat) {
         songs.sortedByDescending { heat[it.heatKey()]?.plays ?: 0 }.take(TOP_SONGS_MAX)
+    }
+    // The Top songs title opens the whole catalogue in place, in the same order.
+    var topExpanded by rememberSaveable(artist) { mutableStateOf(false) }
+    val allSongsByPlays = remember(songs, heat) {
+        songs.sortedByDescending { heat[it.heatKey()]?.plays ?: 0 }
     }
     val latestAlbum = remember(albums) {
         albums.maxByOrNull { album ->
@@ -226,33 +234,72 @@ fun ArtistHeroPage(
             // ── Top songs ───────────────────────────────────────────────
             if (topSongs.isNotEmpty()) {
                 item(key = "top_title") {
-                    SectionTitle(stringResource(R.string.top_songs), palette.onBackground)
+                    val canExpand = songs.size > TOP_SONGS_PER_PAGE
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .then(if (canExpand) Modifier.clickable { topExpanded = !topExpanded } else Modifier)
+                            .padding(end = PAGE_GUTTER),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            SectionTitle(stringResource(R.string.top_songs), palette.onBackground)
+                        }
+                        if (canExpand) {
+                            Text(
+                                text = stringResource(if (topExpanded) R.string.artist_show_less else R.string.show_all),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = palette.accent,
+                                modifier = Modifier.padding(top = 14.dp),
+                            )
+                        }
+                    }
                 }
-                item(key = "top_songs") {
-                    val pages = remember(topSongs) { topSongs.chunked(TOP_SONGS_PER_PAGE) }
-                    HorizontalPager(
-                        state = rememberPagerState { pages.size },
-                        pageSize = if (pages.size > 1) PageSize.Fixed(pageWidth) else PageSize.Fill,
-                        pageSpacing = 12.dp,
-                        contentPadding = PaddingValues(horizontal = PAGE_GUTTER + 6.dp),
-                        verticalAlignment = Alignment.Top,
-                    ) { page ->
-                        Column(Modifier.fillMaxWidth()) {
-                            pages[page].forEach { song ->
-                                TopSongRow(
-                                    song = song,
-                                    isCurrent = song.isSameTrackAs(currentSong),
-                                    titleColor = palette.onBackground,
-                                    subtitleColor = palette.onBackgroundVariant,
-                                    accent = palette.accent,
-                                    onClick = {
-                                        val index = songs.indexOfFirst { it.isSameTrackAs(song) }.coerceAtLeast(0)
-                                        onSongClick(songs, index)
-                                    },
-                                    onLongPress = { onSongLongPress(song) },
-                                    onMore = { onSongMore(song) },
-                                )
+                if (!topExpanded) {
+                    item(key = "top_songs") {
+                        val pages = remember(topSongs) { topSongs.chunked(TOP_SONGS_PER_PAGE) }
+                        HorizontalPager(
+                            state = rememberPagerState { pages.size },
+                            pageSize = if (pages.size > 1) PageSize.Fixed(pageWidth) else PageSize.Fill,
+                            pageSpacing = 12.dp,
+                            contentPadding = PaddingValues(horizontal = PAGE_GUTTER + 6.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) { page ->
+                            Column(Modifier.fillMaxWidth()) {
+                                pages[page].forEach { song ->
+                                    TopSongRow(
+                                        song = song,
+                                        isCurrent = song.isSameTrackAs(currentSong),
+                                        titleColor = palette.onBackground,
+                                        subtitleColor = palette.onBackgroundVariant,
+                                        accent = palette.accent,
+                                        onClick = {
+                                            val index = songs.indexOfFirst { it.isSameTrackAs(song) }.coerceAtLeast(0)
+                                            onSongClick(songs, index)
+                                        },
+                                        onLongPress = { onSongLongPress(song) },
+                                        onMore = { onSongMore(song) },
+                                    )
+                                }
                             }
+                        }
+                    }
+                } else {
+                    items(allSongsByPlays, key = { "top_${it.localUri ?: it.videoId}" }) { song ->
+                        Box(Modifier.padding(horizontal = PAGE_GUTTER + 6.dp)) {
+                            TopSongRow(
+                                song = song,
+                                isCurrent = song.isSameTrackAs(currentSong),
+                                titleColor = palette.onBackground,
+                                subtitleColor = palette.onBackgroundVariant,
+                                accent = palette.accent,
+                                onClick = {
+                                    val index = songs.indexOfFirst { it.isSameTrackAs(song) }.coerceAtLeast(0)
+                                    onSongClick(songs, index)
+                                },
+                                onLongPress = { onSongLongPress(song) },
+                                onMore = { onSongMore(song) },
+                            )
                         }
                     }
                 }

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.MoreHoriz
@@ -34,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -57,9 +59,8 @@ import kotlinx.coroutines.launch
 private const val FAST_DAMPING = 0.6f
 private const val FAST_STIFFNESS = 800f
 
-private val BUTTON_HEIGHT = 52.dp
-private val ROUND = 26.dp
-private val SQUARED = 14.dp
+private val SIDE_BUTTON = 52.dp
+private val PLAY_BUTTON = 72.dp
 
 /**
  * The buttons under a collection's header — shuffle, play, list/grid, move
@@ -101,143 +102,116 @@ fun DrillDownActionRow(
     val tonalBorder = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
     val tonalInk = MaterialTheme.colorScheme.onSurface
 
-    val shuffleSource = remember { MutableInteractionSource() }
-    val playSource = remember { MutableInteractionSource() }
-    val viewSource = remember { MutableInteractionSource() }
-    val moveSource = remember { MutableInteractionSource() }
-    val moreSource = remember { MutableInteractionSource() }
-    val pressed = listOf(
-        shuffleSource.collectIsPressedAsState().value,
-        playSource.collectIsPressedAsState().value,
-        viewSource.collectIsPressedAsState().value,
-        moveSource.collectIsPressedAsState().value,
-        moreSource.collectIsPressedAsState().value,
-    )
-    val pressedIndex = pressed.indexOfFirst { it }
+    // The artist page's look: round translucent buttons around one big solid
+    // Play, which stays centred however many buttons sit either side of it.
+    val ink = if (darkPage) Color.White else Color.Black
+    val circle = ink.copy(alpha = 0.14f)
+    val circleBorder = ink.copy(alpha = 0.28f)
 
     // One element (row and the gap under it), so a grid, which overlays an
     // item's separate pieces instead of stacking them, keeps the gap too.
     androidx.compose.foundation.layout.Column(modifier = modifier) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = PAGE_GUTTER, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        GroupButton(
-            index = 0, baseWeight = 1f, pressedIndex = pressedIndex, source = shuffleSource,
-            container = tonal, border = tonalBorder,
-            label = stringResource(R.string.shuffle),
-            onClick = { if (songs.isNotEmpty()) onShuffle(songs) },
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PAGE_GUTTER, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                com.music.bitchord.ui.icons.PlayerControlIcons.Shuffle,
-                contentDescription = null,
-                tint = tonalInk,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        GroupButton(
-            index = 1, baseWeight = 2.4f, pressedIndex = pressedIndex, source = playSource,
-            container = playContainer, border = null,
-            label = null,
-            onClick = { if (songs.isNotEmpty()) onSongClick(songs, 0) },
-        ) {
-            Icon(BitChordIcons.TransportPlay, contentDescription = null, tint = playInk, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = stringResource(R.string.play),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = playInk,
-                maxLines = 1,
-            )
-        }
-        if (onViewTypeToggle != null && viewType != null) {
-            val grid = viewType == LibraryViewType.GRID
-            GroupButton(
-                index = 2, baseWeight = 1f, pressedIndex = pressedIndex, source = viewSource,
-                container = tonal, border = tonalBorder,
-                label = stringResource(if (grid) R.string.switch_to_list_view else R.string.switch_to_grid_view),
-                onClick = onViewTypeToggle,
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                ViewTypeMorphIcon(grid = grid, color = tonalInk, modifier = Modifier.size(20.dp), state = viewMorph)
+                if (onViewTypeToggle != null && viewType != null) {
+                    val grid = viewType == LibraryViewType.GRID
+                    CircleButton(
+                        size = SIDE_BUTTON, container = circle, border = circleBorder,
+                        label = stringResource(if (grid) R.string.switch_to_list_view else R.string.switch_to_grid_view),
+                        onClick = onViewTypeToggle,
+                    ) {
+                        ViewTypeMorphIcon(grid = grid, color = ink, modifier = Modifier.size(22.dp), state = viewMorph)
+                    }
+                }
+                CircleButton(
+                    size = SIDE_BUTTON, container = circle, border = circleBorder,
+                    label = stringResource(R.string.shuffle),
+                    onClick = { if (songs.isNotEmpty()) onShuffle(songs) },
+                ) {
+                    Icon(
+                        com.music.bitchord.ui.icons.PlayerControlIcons.Shuffle,
+                        contentDescription = null,
+                        tint = ink,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            CircleButton(
+                size = PLAY_BUTTON, container = playContainer, border = null,
+                label = stringResource(R.string.play),
+                onClick = { if (songs.isNotEmpty()) onSongClick(songs, 0) },
+            ) {
+                Icon(BitChordIcons.TransportPlay, contentDescription = null, tint = playInk, modifier = Modifier.size(36.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (onReorderToggle != null) {
+                    CircleButton(
+                        size = SIDE_BUTTON,
+                        container = if (reorderEnabled) MaterialTheme.colorScheme.primaryContainer else circle,
+                        border = if (reorderEnabled) null else circleBorder,
+                        label = stringResource(R.string.toggle_playlist_reorder),
+                        onClick = onReorderToggle,
+                    ) {
+                        Icon(
+                            Icons.Rounded.OpenWith,
+                            contentDescription = null,
+                            tint = if (reorderEnabled) MaterialTheme.colorScheme.onPrimaryContainer else ink,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+                if (onMore != null) {
+                    CircleButton(
+                        size = SIDE_BUTTON, container = circle, border = circleBorder,
+                        label = stringResource(R.string.more),
+                        onClick = onMore,
+                    ) {
+                        Icon(Icons.Rounded.MoreHoriz, contentDescription = null, tint = ink, modifier = Modifier.size(24.dp))
+                    }
+                }
             }
         }
-        if (onReorderToggle != null) {
-            GroupButton(
-                index = 3, baseWeight = 1f, pressedIndex = pressedIndex, source = moveSource,
-                container = if (reorderEnabled) MaterialTheme.colorScheme.primaryContainer else tonal,
-                border = if (reorderEnabled) null else tonalBorder,
-                toggled = reorderEnabled,
-                label = stringResource(R.string.toggle_playlist_reorder),
-                onClick = onReorderToggle,
-            ) {
-                Icon(
-                    Icons.Rounded.OpenWith,
-                    contentDescription = null,
-                    tint = if (reorderEnabled) MaterialTheme.colorScheme.onPrimaryContainer else tonalInk,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-        if (onMore != null) {
-            GroupButton(
-                index = 4, baseWeight = 1f, pressedIndex = pressedIndex, source = moreSource,
-                container = tonal, border = tonalBorder,
-                label = stringResource(R.string.more),
-                onClick = onMore,
-            ) {
-                Icon(Icons.Rounded.MoreHoriz, contentDescription = null, tint = tonalInk, modifier = Modifier.size(20.dp))
-            }
-        }
-    }
-    Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(4.dp))
     }
 }
 
-/** One button of [DrillDownActionRow]'s group. */
+/** One round button of [DrillDownActionRow]. */
 @Composable
-private fun RowScope.GroupButton(
-    index: Int,
-    baseWeight: Float,
-    pressedIndex: Int,
-    source: MutableInteractionSource,
+private fun CircleButton(
+    size: Dp,
     container: Color,
     border: Color?,
-    label: String?,
+    label: String,
     onClick: () -> Unit,
-    toggled: Boolean = false,
-    content: @Composable RowScope.() -> Unit,
+    content: @Composable () -> Unit,
 ) {
-    val weight by animateFloatAsState(
-        when (pressedIndex) {
-            -1 -> baseWeight
-            index -> baseWeight * 1.18f
-            else -> baseWeight * 0.94f
-        },
-        spring(FAST_DAMPING, FAST_STIFFNESS),
-        label = "groupButtonWeight",
-    )
-    val corner: Dp by animateDpAsState(
-        if (pressedIndex == index || toggled) SQUARED else ROUND,
-        spring(FAST_DAMPING, Spring.StiffnessMedium),
-        label = "groupButtonCorner",
-    )
-    val shape = RoundedCornerShape(corner)
-    Row(
+    Box(
         modifier = Modifier
-            .weight(weight)
-            .height(BUTTON_HEIGHT)
-            .background(container, shape)
-            .then(if (border != null) Modifier.border(0.5.dp, border, shape) else Modifier)
-            .clickable(interactionSource = source, indication = null, onClick = onClick)
-            .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-        content = content,
-    )
+            .size(size)
+            .clip(CircleShape)
+            .background(container, CircleShape)
+            .then(if (border != null) Modifier.border(1.dp, border, CircleShape) else Modifier)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
 }
 
 /**
