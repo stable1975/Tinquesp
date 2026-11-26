@@ -171,7 +171,6 @@ import com.music.bitchord.ui.components.MessageState
 import com.music.bitchord.ui.components.PAGE_GUTTER
 import com.music.bitchord.ui.components.ROW_DIVIDER_INSET
 import com.music.bitchord.ui.components.SongRow
-import com.music.bitchord.ui.components.thumbnailBorder
 import com.music.bitchord.ui.components.TopBarContentGap
 import com.music.bitchord.ui.components.topBarHeight
 import com.music.bitchord.feature.localsongactions.ui.LocalSongActionsHelper
@@ -951,7 +950,6 @@ fun LocalMusicScreen(
                                         onAlbumClick = { hero ->
                                             albumsForPage.firstOrNull { it.key == hero.key }?.let(openAlbum)
                                         },
-                                        onSeeAllAlbums = { artistMode = ArtistPageMode.ALBUMS },
                                         onOpenFolders = if (artistSongs.any { !it.localPath.isNullOrBlank() }) {
                                             { artistMode = ArtistPageMode.FOLDERS }
                                         } else null,
@@ -1820,8 +1818,7 @@ private fun ArtistRow(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(CircleShape)
-                    .thumbnailBorder(CircleShape),
+                    .clip(CircleShape),
             )
         }
         Spacer(Modifier.width(14.dp))
@@ -1905,8 +1902,7 @@ private fun ArtistGridCard(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(CircleShape)
-                    .thumbnailBorder(CircleShape),
+                    .clip(CircleShape),
             )
         }
         Spacer(Modifier.height(if (cardCompact.compact) 4.dp else 8.dp))
@@ -2197,7 +2193,6 @@ private fun AlbumGridCard(
                 }
                 .heatRing(com.music.bitchord.ui.components.rememberTileHeat(entry.songs), shape)
                 .clip(shape)
-                .thumbnailBorder(shape)
                 .background(MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center,
         ) {
@@ -2367,8 +2362,7 @@ private fun CollectionArtwork(url: String?, playlist: Boolean, size: Dp) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(size)
-                    .clip(shape)
-                    .thumbnailBorder(shape),
+                    .clip(shape),
             )
         }
     }

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,7 +41,6 @@ import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -114,7 +114,6 @@ fun ArtistHeroPage(
     onSongLongPress: (Song) -> Unit,
     onSongMore: (Song) -> Unit,
     onAlbumClick: (ArtistHeroAlbum) -> Unit,
-    onSeeAllAlbums: () -> Unit,
     onOpenFolders: (() -> Unit)?,
     contentPadding: PaddingValues,
     onArtworkPaletteChanged: ((com.music.bitchord.ui.theme.ArtworkPalette?) -> Unit)?,
@@ -140,6 +139,8 @@ fun ArtistHeroPage(
     val allSongsByPlays = remember(songs, heat) {
         songs.sortedByDescending { heat[it.heatKey()]?.plays ?: 0 }
     }
+    // "Show all" on Albums opens the whole list in place, in two columns.
+    var albumsExpanded by rememberSaveable(artist) { mutableStateOf(false) }
     val latestAlbum = remember(albums) {
         albums.maxByOrNull { album ->
             album.songs.maxOfOrNull { it.localDateAddedSeconds ?: 0L } ?: 0L
@@ -309,29 +310,60 @@ fun ArtistHeroPage(
             if (albums.isNotEmpty()) {
                 item(key = "albums_title") {
                     Row(
-                        Modifier.fillMaxWidth().padding(end = PAGE_GUTTER),
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { albumsExpanded = !albumsExpanded }
+                            .padding(end = PAGE_GUTTER),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(Modifier.weight(1f)) {
                             SectionTitle(stringResource(R.string.albums), palette.onBackground)
                         }
-                        TextButton(onClick = onSeeAllAlbums) {
-                            Text(stringResource(R.string.show_all), color = palette.accent)
-                        }
+                        Text(
+                            text = stringResource(if (albumsExpanded) R.string.artist_show_less else R.string.show_all),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = palette.accent,
+                            modifier = Modifier.padding(top = 14.dp),
+                        )
                     }
                 }
-                item(key = "albums_row") {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = PAGE_GUTTER + 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        items(albums, key = { it.key }) { album ->
-                            AlbumCard(
-                                album = album,
-                                        textColor = palette.onBackground,
-                                subtextColor = palette.onBackgroundVariant,
-                                onClick = { onAlbumClick(album) },
-                            )
+                if (!albumsExpanded) {
+                    item(key = "albums_row") {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = PAGE_GUTTER + 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            items(albums, key = { it.key }) { album ->
+                                AlbumCard(
+                                    album = album,
+                                    textColor = palette.onBackground,
+                                    subtextColor = palette.onBackgroundVariant,
+                                    onClick = { onAlbumClick(album) },
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    val albumRows = albums.chunked(2)
+                    items(albumRows.size, key = { "albums_grid_${albumRows[it].first().key}" }) { rowIndex ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = PAGE_GUTTER + 6.dp)
+                                .padding(bottom = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            albumRows[rowIndex].forEach { album ->
+                                AlbumGridCard(
+                                    album = album,
+                                    textColor = palette.onBackground,
+                                    subtextColor = palette.onBackgroundVariant,
+                                    onClick = { onAlbumClick(album) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            // Keep a lone last album at column width.
+                            if (albumRows[rowIndex].size == 1) Spacer(Modifier.weight(1f))
                         }
                     }
                 }
@@ -608,6 +640,35 @@ private fun AlbumCard(
         Box {
             AlbumCover(album, Modifier.size(150.dp), RoundedCornerShape(16.dp))
         }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = album.title,
+            style = MaterialTheme.typography.titleSmall,
+            color = textColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = album.subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = subtextColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** An album in the expanded two-column grid: the cover fills its column. */
+@Composable
+private fun AlbumGridCard(
+    album: ArtistHeroAlbum,
+    textColor: Color,
+    subtextColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier.clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick)) {
+        AlbumCover(album, Modifier.fillMaxWidth().aspectRatio(1f), RoundedCornerShape(16.dp))
         Spacer(Modifier.height(8.dp))
         Text(
             text = album.title,
