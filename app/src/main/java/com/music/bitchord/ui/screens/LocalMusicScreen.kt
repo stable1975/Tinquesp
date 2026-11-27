@@ -1,7 +1,6 @@
 package com.music.bitchord.ui.screens
 
 import com.music.bitchord.ui.components.GlassDropdownMenu
-import com.music.bitchord.ui.components.heatRing
 import com.music.bitchord.ui.components.SelectionDeleteEffect
 import com.music.bitchord.ui.components.SelectionScopeEffect
 import com.music.bitchord.ui.components.SongSelection
@@ -1877,7 +1876,6 @@ private fun ArtistGridCard(
             modifier = Modifier
                 .fillMaxWidth(0.88f)
                 .aspectRatio(1f)
-                .heatRing(heat, CircleShape)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
@@ -2191,7 +2189,6 @@ private fun AlbumGridCard(
                     scaleX = artScale
                     scaleY = artScale
                 }
-                .heatRing(com.music.bitchord.ui.components.rememberTileHeat(entry.songs), shape)
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.secondaryContainer),
             contentAlignment = Alignment.Center,
