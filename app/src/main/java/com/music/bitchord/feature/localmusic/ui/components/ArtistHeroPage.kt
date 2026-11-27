@@ -80,7 +80,7 @@ import com.music.bitchord.feature.library.data.artistKey
 import com.music.bitchord.ui.components.PAGE_GUTTER
 import com.music.bitchord.ui.components.thumbnailBorder
 import com.music.bitchord.ui.icons.BitChordIcons
-import com.music.bitchord.ui.theme.rememberArtworkPalette
+import com.music.bitchord.ui.theme.rememberArtworkPaletteOf
 
 /** An album as the artist page shows it (the screen's own entry type is private). */
 data class ArtistHeroAlbum(
@@ -121,9 +121,15 @@ fun ArtistHeroPage(
     modifier: Modifier = Modifier,
 ) {
     val fallbackArt = remember(songs) { songs.firstNotNullOfOrNull { it.thumbnailUrl } }
-    val palette = rememberArtworkPalette(
-        imageUrl = fallbackArt.artworkAt(HEADER_ART_PX),
-        artPx = HEADER_ART_PX,
+    val artistModel = remember(artist, fallbackArt, allowRemoteArtwork) {
+        ArtistImage(name = artist, fallbackUrl = fallbackArt, isLarge = true, allowOnlineLookup = allowRemoteArtwork)
+    }
+    // The page takes its colours from the portrait it actually shows (not from
+    // an album sleeve), so every artist gets a tint that matches their own photo.
+    val palette = rememberArtworkPaletteOf(
+        key = "artist-hero::${artist.trim().lowercase()}|${fallbackArt.orEmpty()}|$allowRemoteArtwork",
+        model = artistModel,
+        tintFromTone = true,
     )
     // The app bar floats over the portrait in the artwork's colour, as it does
     // on an album page.
@@ -145,9 +151,6 @@ fun ArtistHeroPage(
         albums.maxByOrNull { album ->
             album.songs.maxOfOrNull { it.localDateAddedSeconds ?: 0L } ?: 0L
         }
-    }
-    val artistModel = remember(artist, fallbackArt, allowRemoteArtwork) {
-        ArtistImage(name = artist, fallbackUrl = fallbackArt, isLarge = true, allowOnlineLookup = allowRemoteArtwork)
     }
 
     BoxWithConstraints(modifier.fillMaxSize().background(palette.wash)) {
