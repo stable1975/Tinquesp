@@ -1,0 +1,288 @@
+diff --git a/app/src/main/java/com/music/bitchord/feature/localmusic/ui/components/ArtistHeroPage.kt b/app/src/main/java/com/music/bitchord/feature/localmusic/ui/components/ArtistHeroPage.kt
+index dd4b3a6..567bf30 100644
+--- a/app/src/main/java/com/music/bitchord/feature/localmusic/ui/components/ArtistHeroPage.kt
++++ b/app/src/main/java/com/music/bitchord/feature/localmusic/ui/components/ArtistHeroPage.kt
+@@ -80,7 +80,7 @@ import com.music.bitchord.feature.library.data.artistKey
+ import com.music.bitchord.ui.components.PAGE_GUTTER
+ import com.music.bitchord.ui.components.thumbnailBorder
+ import com.music.bitchord.ui.icons.BitChordIcons
+-import com.music.bitchord.ui.theme.rememberArtworkPalette
++import com.music.bitchord.ui.theme.rememberArtworkPaletteOf
+ 
+ /** An album as the artist page shows it (the screen's own entry type is private). */
+ data class ArtistHeroAlbum(
+@@ -121,9 +121,15 @@ fun ArtistHeroPage(
+     modifier: Modifier = Modifier,
+ ) {
+     val fallbackArt = remember(songs) { songs.firstNotNullOfOrNull { it.thumbnailUrl } }
+-    val palette = rememberArtworkPalette(
+-        imageUrl = fallbackArt.artworkAt(HEADER_ART_PX),
+-        artPx = HEADER_ART_PX,
++    val artistModel = remember(artist, fallbackArt, allowRemoteArtwork) {
++        ArtistImage(name = artist, fallbackUrl = fallbackArt, isLarge = true, allowOnlineLookup = allowRemoteArtwork)
++    }
++    // The page takes its colours from the portrait it actually shows (not from
++    // an album sleeve), so every artist gets a tint that matches their own photo.
++    val palette = rememberArtworkPaletteOf(
++        key = "artist-hero::${artist.trim().lowercase()}|${fallbackArt.orEmpty()}|$allowRemoteArtwork",
++        model = artistModel,
++        tintFromTone = true,
+     )
+     // The app bar floats over the portrait in the artwork's colour, as it does
+     // on an album page.
+@@ -146,9 +152,6 @@ fun ArtistHeroPage(
+             album.songs.maxOfOrNull { it.localDateAddedSeconds ?: 0L } ?: 0L
+         }
+     }
+-    val artistModel = remember(artist, fallbackArt, allowRemoteArtwork) {
+-        ArtistImage(name = artist, fallbackUrl = fallbackArt, isLarge = true, allowOnlineLookup = allowRemoteArtwork)
+-    }
+ 
+     BoxWithConstraints(modifier.fillMaxSize().background(palette.wash)) {
+         val heroHeight = (maxWidth * 1.1f).coerceAtMost(maxHeight * 0.52f)
+diff --git a/app/src/main/java/com/music/bitchord/ui/theme/ArtworkPalette.kt b/app/src/main/java/com/music/bitchord/ui/theme/ArtworkPalette.kt
+index 016996a..b44dde2 100644
+--- a/app/src/main/java/com/music/bitchord/ui/theme/ArtworkPalette.kt
++++ b/app/src/main/java/com/music/bitchord/ui/theme/ArtworkPalette.kt
+@@ -96,7 +96,29 @@ fun rememberArtworkPalette(
+      * out of the cache or off the network.
+      */
+     artPx: Int = CARD_ART_PX,
++): ArtworkPalette = rememberArtworkPaletteOf(
++    key = imageUrl,
++    model = imageUrl.artworkAt(artPx),
++    dark = dark,
++)
++
++/**
++ * As [rememberArtworkPalette], but for any Coil model (an artist portrait, say)
++ * rather than only an artwork URL, so a page can take its colours from the exact
++ * picture it shows.
++ *
++ * [key] identifies that picture in the seed cache. With [tintFromTone] the page
++ * tint follows the picture's dominant *colour* (what it is mostly made of,
++ * ignoring near-black and near-white), instead of the mean of its bottom edge.
++ */
++@Composable
++fun rememberArtworkPaletteOf(
++    key: String?,
++    model: Any?,
++    dark: Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f,
++    tintFromTone: Boolean = false,
+ ): ArtworkPalette {
++    val imageUrl = key
+     val context = LocalContext.current
+     val scheme = MaterialTheme.colorScheme
+     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
+@@ -108,7 +130,7 @@ fun rememberArtworkPalette(
+     // front of a surface that could already be right.
+     val knownUpFront = remember(imageUrl) { seed != null }
+ 
+-    LaunchedEffect(imageUrl, artPx) {
++    LaunchedEffect(imageUrl, model) {
+         if (imageUrl == null || seed != null) return@LaunchedEffect
+         val request = ImageRequest.Builder(context)
+             // The size the artwork is *displayed* at, deliberately: the fetch
+@@ -116,7 +138,7 @@ fun rememberArtworkPalette(
+             // drawing the same artwork, instead of pulling its own copy over
+             // the wire — which is the difference between a surface that is
+             // tinted as it opens and one that turns colour a second later.
+-            .data(imageUrl.artworkAt(artPx))
++            .data(model)
+             .size(PALETTE_PX) // palette quality holds up here, and it's far faster
+             .allowHardware(false) // Palette needs pixel access
+             .build()
+@@ -129,7 +151,7 @@ fun rememberArtworkPalette(
+         seed = found
+     }
+ 
+-    val target = seed?.toPalette(dark) ?: ArtworkPalette(
++    val target = seed?.toPalette(dark, tintFromTone) ?: ArtworkPalette(
+         background = scheme.background,
+         wash = scheme.background,
+         elevated = scheme.surfaceVariant,
+@@ -199,7 +221,7 @@ private const val TINT_FADE_MS = 260
+  * The raw artwork colours: what the page is mostly made of, its brightest
+  * note, and what its bottom edge averages out to.
+  */
+-private data class Seed(val dominant: Color, val vibrant: Color?, val edge: Color)
++private data class Seed(val dominant: Color, val vibrant: Color?, val edge: Color, val tone: Color = dominant)
+ 
+ private fun seedOf(bitmap: Bitmap): Seed? {
+     fun swatches(builder: Palette.Builder) =
+@@ -233,12 +255,98 @@ private fun seedOf(bitmap: Bitmap): Seed? {
+         ?: Color(dominant.rgb).takeIf { color ->
+             FloatArray(3).also { hsl -> ColorUtils.colorToHSL(color.toArgb(), hsl) }[1] >= MIN_ACCENT_SATURATION
+         }
+-    return Seed(Color(dominant.rgb), vibrant, bitmap.bottomEdgeColor())
++    // The colour the picture reads as overall. The most populous swatch alone can
++    // be the black of a jacket or the white of a wall, which would turn the whole
++    // page black or grey; so among the swatches that cover a fair share of the
++    // picture, and are neither near-black nor near-white, favour the one with the
++    // most population and colour. A genuinely grey picture still comes out grey.
++    val swatchTone = found.asSequence()
++        .filter { it.population >= strongestPopulation * TONE_MIN_POPULATION_RATIO }
++        .mapNotNull { swatch ->
++            val hsl = FloatArray(3).also { ColorUtils.colorToHSL(swatch.rgb, it) }
++            if (hsl[2] < TONE_MIN_LIGHTNESS || hsl[2] > TONE_MAX_LIGHTNESS) null
++            else swatch to (swatch.population * (TONE_SATURATION_BASE + hsl[1]))
++        }
++        .maxByOrNull { it.second }
++        ?.first
++        ?.let { Color(it.rgb) }
++        ?: Color(dominant.rgb)
++    // What the picture reads as to the eye: the hue that covers most of it, so
++    // a red wall wins over the gold of a few faces. Swatches are only the
++    // fallback for pictures with no real colour in them.
++    val tone = bitmap.dominantHueTone() ?: swatchTone
++    return Seed(Color(dominant.rgb), vibrant, bitmap.bottomEdgeColor(), tone)
+ }
+ 
++/**
++ * The colour a picture is mostly made of, found by weighing every pixel's hue
++ * rather than ranking quantiser swatches (which split one wall into several
++ * near-identical swatches and let a small warm patch outrank it).
++ *
++ * Near-black, near-white and grey pixels carry no hue and are ignored; the rest
++ * vote for their hue in proportion to how colourful and how mid-toned they are.
++ * Neighbouring hue bins are summed so one colour split across a bin edge still
++ * wins. Null when almost nothing in the picture has a colour.
++ */
++private fun Bitmap.dominantHueTone(): Color? {
++    val pixels = IntArray(width * height)
++    getPixels(pixels, 0, width, 0, 0, width, height)
++
++    val weight = FloatArray(HUE_BINS)
++    val sat = FloatArray(HUE_BINS)
++    val light = FloatArray(HUE_BINS)
++    val sinH = FloatArray(HUE_BINS)
++    val cosH = FloatArray(HUE_BINS)
++    val hsl = FloatArray(3)
++    for (pixel in pixels) {
++        ColorUtils.colorToHSL(pixel, hsl)
++        val h = hsl[0]
++        val s = hsl[1]
++        val l = hsl[2]
++        if (l < HUE_MIN_LIGHTNESS || l > HUE_MAX_LIGHTNESS || s < HUE_MIN_SATURATION) continue
++        val w = s * (1f - kotlin.math.abs(2f * l - 1f))
++        val bin = (h / 360f * HUE_BINS).toInt().coerceIn(0, HUE_BINS - 1)
++        val rad = Math.toRadians(h.toDouble())
++        weight[bin] += w
++        sat[bin] += s * w
++        light[bin] += l * w
++        sinH[bin] += (kotlin.math.sin(rad) * w).toFloat()
++        cosH[bin] += (kotlin.math.cos(rad) * w).toFloat()
++    }
++
++    fun wrapBin(i: Int) = (i + HUE_BINS) % HUE_BINS
++    var best = -1
++    var bestScore = 0f
++    for (i in 0 until HUE_BINS) {
++        val score = weight[wrapBin(i - 1)] * 0.5f + weight[i] + weight[wrapBin(i + 1)] * 0.5f
++        if (score > bestScore) { bestScore = score; best = i }
++    }
++    if (best < 0 || bestScore < pixels.size * HUE_MIN_COVERAGE) return null
++
++    var w = 0f; var sSum = 0f; var lSum = 0f; var sinSum = 0f; var cosSum = 0f
++    for (i in intArrayOf(wrapBin(best - 1), best, wrapBin(best + 1))) {
++        w += weight[i]; sSum += sat[i]; lSum += light[i]; sinSum += sinH[i]; cosSum += cosH[i]
++    }
++    if (w <= 0f) return null
++    var hue = Math.toDegrees(kotlin.math.atan2(sinSum.toDouble(), cosSum.toDouble())).toFloat()
++    if (hue < 0f) hue += 360f
++    return Color(ColorUtils.HSLToColor(floatArrayOf(hue, sSum / w, lSum / w)))
++}
++
++private const val HUE_BINS = 24
++private const val HUE_MIN_LIGHTNESS = 0.12f
++private const val HUE_MAX_LIGHTNESS = 0.90f
++private const val HUE_MIN_SATURATION = 0.18f
++/** Share of the picture that must have a real colour before it is trusted over the swatches. */
++private const val HUE_MIN_COVERAGE = 0.02f
++
+ private const val SWATCH_COUNT = 24
+ private const val MIN_ACCENT_POPULATION_RATIO = 0.12f
+ private const val MIN_ACCENT_SATURATION = 0.18f
++private const val TONE_MIN_POPULATION_RATIO = 0.30f
++private const val TONE_MIN_LIGHTNESS = 0.15f
++private const val TONE_MAX_LIGHTNESS = 0.85f
++private const val TONE_SATURATION_BASE = 0.35f
+ 
+ /**
+  * The mean of the artwork's bottom band — what a blur wide enough to lose the
+@@ -272,7 +380,7 @@ private fun Bitmap.bottomEdgeColor(): Color {
+ /** How much of the artwork's height the edge colour is read from. */
+ private const val EDGE_BAND = 0.18f
+ 
+-private fun Seed.toPalette(dark: Boolean): ArtworkPalette = toThemePalette(dark).copy(
++private fun Seed.toPalette(dark: Boolean, fromTone: Boolean = false): ArtworkPalette = toThemePalette(dark, fromTone).copy(
+     // The dominant colour rather than the vibrant one: a small bright patch of
+     // the sleeve spread over every glass surface reads far louder than it is.
+     glass = dominant.withHsl(
+@@ -281,22 +389,31 @@ private fun Seed.toPalette(dark: Boolean): ArtworkPalette = toThemePalette(dark)
+     ),
+ )
+ 
+-private fun Seed.toThemePalette(dark: Boolean): ArtworkPalette = if (dark) {
++private fun Seed.toThemePalette(dark: Boolean, fromTone: Boolean = false): ArtworkPalette = if (dark) {
+     val accent = vibrant ?: Color(0xFFE0E0E0)
++    // [fromTone] derives the whole tint from the picture's overall colour.
++    val base = if (fromTone) tone else dominant
+     ArtworkPalette(
+         // Deep enough that white body text clears contrast on any sleeve, but
+         // not so deep the hue is gone — the whole point is that the page is
+         // recognisably *this* record's colour.
+-        background = dominant.withHsl(saturation = { it.coerceIn(0.20f, 0.62f) }, lightness = { 0.13f }),
++        background = base.withHsl(saturation = { it.coerceIn(0.20f, 0.62f) }, lightness = { 0.13f }),
+         // Follows the edge's own brightness within a band that stays clear of
+         // white body text at the top and of [background] at the bottom: a
+         // sleeve that ends dark hands over almost invisibly, one that ends
+         // bright leaves a page that is visibly lit from under the artwork.
+-        wash = edge.withHsl(
+-            saturation = { it.coerceIn(0.18f, 0.58f) },
+-            lightness = { it.coerceIn(0.14f, 0.24f) },
+-        ),
+-        elevated = dominant.withHsl(saturation = { it.coerceIn(0.20f, 0.62f) }, lightness = { 0.22f }),
++        wash = if (fromTone) {
++            tone.withHsl(
++                saturation = { (it * 1.1f).coerceAtMost(0.65f) },
++                lightness = { it.coerceIn(0.16f, 0.30f) },
++            )
++        } else {
++            edge.withHsl(
++                saturation = { it.coerceIn(0.18f, 0.58f) },
++                lightness = { it.coerceIn(0.14f, 0.24f) },
++            )
++        },
++        elevated = base.withHsl(saturation = { it.coerceIn(0.20f, 0.62f) }, lightness = { 0.22f }),
+         accent = accent.withHsl(
+             saturation = { it.coerceIn(MIN_ACCENT_SATURATION, 0.78f) },
+             lightness = { it.coerceIn(0.62f, 0.78f) },
+@@ -311,13 +428,21 @@ private fun Seed.toThemePalette(dark: Boolean): ArtworkPalette = if (dark) {
+     )
+ } else {
+     val accent = vibrant ?: Color(0xFF424242)
++    val base = if (fromTone) tone else dominant
+     ArtworkPalette(
+-        background = dominant.withHsl(saturation = { it.coerceIn(0.14f, 0.50f) }, lightness = { 0.91f }),
+-        wash = edge.withHsl(
+-            saturation = { it.coerceIn(0.12f, 0.46f) },
+-            lightness = { it.coerceIn(0.78f, 0.90f) },
+-        ),
+-        elevated = dominant.withHsl(saturation = { it.coerceIn(0.14f, 0.50f) }, lightness = { 0.83f }),
++        background = base.withHsl(saturation = { it.coerceIn(0.14f, 0.50f) }, lightness = { 0.91f }),
++        wash = if (fromTone) {
++            tone.withHsl(
++                saturation = { it.coerceAtMost(0.50f) },
++                lightness = { it.coerceIn(0.78f, 0.90f) },
++            )
++        } else {
++            edge.withHsl(
++                saturation = { it.coerceIn(0.12f, 0.46f) },
++                lightness = { it.coerceIn(0.78f, 0.90f) },
++            )
++        },
++        elevated = base.withHsl(saturation = { it.coerceIn(0.14f, 0.50f) }, lightness = { 0.83f }),
+         accent = accent.withHsl(
+             saturation = { it.coerceIn(MIN_ACCENT_SATURATION, 0.78f) },
+             lightness = { it.coerceIn(0.30f, 0.44f) },
